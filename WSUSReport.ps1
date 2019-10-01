@@ -146,7 +146,6 @@ $WSUSStats = $Wsus.GetStatus()
 $TargetGroups = $Wsus.GetComputerTargetGroups()
 $EmptyTargetGroups = $TargetGroups | Where {
     $_.GetComputerTargets().Count -eq 0 -AND $_.Name -ne 'Unassigned Computers'
-}
 
 #Stale Computers
 $computerscope = New-Object Microsoft.UpdateServices.Administration.ComputerTargetScope
@@ -161,7 +160,7 @@ $StaleComputers = $wsus.GetComputerTargets($computerscope) | ForEach {
         TargetGroups = ($_.GetComputerTargetGroups() | Select -Expand Name) -join ', '
     }
 }
-
+}
 #Pending Reboots
 $updateScope = New-Object Microsoft.UpdateServices.Administration.UpdateScope
 $updateScope.IncludedInstallationStates = 'InstalledPendingReboot'
@@ -220,6 +219,30 @@ $ComputerFailInstall = $wsus.GetComputerTargets($computerScope) | ForEach {
 } | Sort Computername
 #endregion Pre-Stage -- Used in more than one location
 
+#startregion Automatic and Manual Update
+
+$StagingCount = $wsus.GetComputerTargetGroups() | Where {$_.Name -eq 'Staging'} | Select-Object -ExpandProperty Id
+$StagingCount = $wsus.GetComputerTargetGroup($StagingCount)
+$StagingTargets = ($StagingCount).GetComputerTargets()
+$StagingTargets.Count
+
+$DevelopmentCount = $wsus.GetComputerTargetGroups() | Where {$_.Name -eq 'Development'} | Select-Object -ExpandProperty Id
+$DevelopmentCount = $wsus.GetComputerTargetGroup($DevelopmentCount)
+$DevelopmentTargets = ($DevelopmentCount).GetComputerTargets()
+$DevelopmentTargets.Count
+
+$DeveloperVMCount = $wsus.GetComputerTargetGroups() | Where {$_.Name -eq 'Developer VMs'} | Select-Object -ExpandProperty Id
+$DeveloperVMCount = $wsus.GetComputerTargetGroup($DeveloperVMCount)
+$DeveloperVMTargets = ($DeveloperVMCount).GetComputerTargets()
+
+$DeveloperVMTargets.Count
+
+$AutoUpdateCount = $StagingTargets.Count + $DevelopmentTargets.Count + $DeveloperVMTargets.Count
+
+$ManualUpdateCount = $wsus.GetComputerTargets().Count - $AutoUpdateCount
+
+#endregion Automatic and Manual Update
+
 #region CLIENT INFORMATION
 $Pre = @"
 <div style='margin: 0px auto; BACKGROUND-COLOR:#cb463c;Color:White;font-weight:bold;FONT-SIZE: 16pt;'>
@@ -233,6 +256,8 @@ $Pre = @"
         NeedingUpdates = [int]$WSUSStats.ComputerTargetsNeedingUpdatesCount
         FailedInstall = [int]$WSUSStats.ComputerTargetsWithUpdateErrorsCount
         PendingReboot = ($ComputerPendingReboot | Measure-Object).Count
+        AutomaticUpdates = $AutoUpdateCount
+        ManualUpdateCount = $ManualUpdateCount 
     }
 
     $Pre += @"
@@ -347,6 +372,7 @@ $Pre = @"
         TotalGroups = [int]$TargetGroups.count
         TotalEmptyGroups = [int]$EmptyTargetGroups.Count
     }
+
     $Pre += @"
         <div style='margin: 0px auto; BACKGROUND-COLOR:	#414141;Color:White;font-weight:bold;FONT-SIZE: 14pt;'>
             Target Group Statistics
@@ -362,7 +388,7 @@ $Pre = @"
 $HTMLParams = @{
     Head = $Head
     Title = "WSUS Report for $WSUSServer"
-    PostContent = "$($htmlFragment)"#<i>Report generated on $((Get-Date).ToString())</i>" 
+    PostContent = "$($htmlFragment)" + "-- Powered by SSW.WSUSReport Server: SYDMON2016P01" #<i>Report generated on $((Get-Date).ToString())</i>" 
 }
 $Report = ConvertTo-Html @HTMLParams | Out-String
 #endregion Compile HTML Report
@@ -374,7 +400,7 @@ If ($ShowFile) {
 
 #region Send Email
 If ($SendEmail) {
-    $EmailParams.Body = $Report
+    $EmailParams.Body = $Report 
     Send-MailMessage @EmailParams
 }
 #endregion Send Email
