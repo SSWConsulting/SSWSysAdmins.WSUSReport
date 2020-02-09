@@ -388,7 +388,7 @@ $Pre = @"
 $HTMLParams = @{
     Head = $Head
     Title = "WSUS Report for $WSUSServer"
-    PostContent = "$($htmlFragment)" + "-- Powered by SSW.WSUSReport Server: SYDMON2016P01" #<i>Report generated on $((Get-Date).ToString())</i>" 
+    PostContent = "$($htmlFragment)" + "-- Powered by SSWSysAdmins.WSUSReport Server: SYDMON2016P01" #<i>Report generated on $((Get-Date).ToString())</i>" 
 }
 $Report = ConvertTo-Html @HTMLParams | Out-String
 #endregion Compile HTML Report
